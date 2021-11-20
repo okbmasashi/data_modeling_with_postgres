@@ -6,6 +6,13 @@ from sql_queries import *
 
 
 def process_song_file(cur, filepath):
+    """Data processing with the song files.
+    
+    Args:
+        cur (psycopg2.cursor): psycopg2 cursor
+        filepath (str): Filename of the song file
+        
+    """ 
     # open song file
     df = pd.read_json(filepath, lines=True)
 
@@ -18,7 +25,6 @@ def process_song_file(cur, filepath):
         except psycopg2.Error as e:
             print("Error: Insert Song Table")
             break
-
     
         # insert artist record
         artist_data = (row.artist_id, row.artist_name, row.artist_location, row.artist_latitude, row.artist_longitude)
@@ -29,6 +35,13 @@ def process_song_file(cur, filepath):
             break
 
 def process_log_file(cur, filepath):
+    """Data processing with the play log files.
+    
+    Args:
+        cur (psycopg2.cursor): psycopg2 cursor
+        filepath (str): Filename of the play log file
+        
+    """ 
     # open log file
     df = pd.read_json(filepath, lines=True)
 
@@ -39,13 +52,14 @@ def process_log_file(cur, filepath):
     t = pd.to_datetime(df['ts'].astype(int), unit='ms')
 
     # insert time data records
-    time_data = pd.concat([df['ts'], 
-              t.dt.hour,
-              t.dt.day,
-              t.dt.week,
-              t.dt.month,
-              t.dt.year,
-              t.dt.weekday],axis=1)
+    time_data = pd.concat([
+        pd.to_datetime(df['ts'], unit='ms'), 
+        t.dt.hour,
+        t.dt.day,
+        t.dt.week,
+        t.dt.month,
+        t.dt.year,
+        t.dt.weekday],axis=1)
     column_labels = (['datetime',
                   'hour',
                   'day',
@@ -93,7 +107,7 @@ def process_log_file(cur, filepath):
 
             # insert songplay record
             try:
-                songplay_data = (row.ts, row.userId, row.level, songid, artistid, 
+                songplay_data = (pd.to_datetime(row.ts, unit='ms'), row.userId, row.level, songid, artistid, 
                                  row.sessionId, row.location, row.userAgent)
                 print(songplay_data)
                 cur.execute(songplay_table_insert, songplay_data)
@@ -106,6 +120,15 @@ def process_log_file(cur, filepath):
             break
             
 def process_data(cur, conn, filepath, func):
+    """Data processing with all files in the sub-directory.
+    
+    Args:
+        cur (psycopg2.cursor): psycopg2 cursor
+        conn (psycopg2.connection): psycopg2 connection
+        filepath (str): sub-directory name
+        func (str): function name to process
+        
+    """ 
     # get all files matching extension from directory
     all_files = []
     for root, dirs, files in os.walk(filepath):
@@ -125,6 +148,9 @@ def process_data(cur, conn, filepath, func):
 
 
 def main():
+    """Main function for the data processing.
+    
+    """ 
     conn = psycopg2.connect("host=127.0.0.1 dbname=sparkifydb user=student password=student")
     cur = conn.cursor()
 
